@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Optimising Learned H_theta for Low Error Spatial Audio Rendering</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #f7f5f0;
+      --ink: #111111;
+      --soft: #222222;
+      --muted: #777777;
+      --accent: #1a56db;
+      --rule: #dddbd4;
+      --code-bg: #eceae4;
+      --sans: 'IBM Plex Sans', system-ui, sans-serif;
+      --mono: 'IBM Plex Mono', monospace;
+      --max: 740px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 17px;
+      line-height: 1.8;
+      padding: 0 24px;
+    }
+
+    header {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 72px 0 40px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    h1 {
+      font-size: clamp(22px, 3.5vw, 32px);
+      font-weight: 600;
+      line-height: 1.25;
+      letter-spacing: -0.01em;
+    }
+
+    nav {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--rule);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 20px;
+    }
+
+    nav a {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    nav a:hover { text-decoration: underline; }
+
+    main {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 56px 0 100px;
+    }
+
+    section { margin-bottom: 56px; }
+
+    h2 {
+      font-family: var(--sans);
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    h3 {
+      font-family: var(--sans);
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--accent);
+      margin: 28px 0 10px;
+    }
+
+    p {
+      color: var(--soft);
+      margin-bottom: 14px;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    ul {
+      color: var(--soft);
+      padding-left: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .eq {
+      display: block;
+      font-family: var(--mono);
+      font-size: 14px;
+      background: var(--code-bg);
+      padding: 12px 16px;
+      margin: 14px 0;
+      color: var(--ink);
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    code {
+      font-family: var(--mono);
+      font-size: 14px;
+      background: var(--code-bg);
+      padding: 1px 5px;
+      color: var(--ink);
+    }
+
+    .io {
+      margin: 16px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .io-row {
+      display: flex;
+      gap: 14px;
+      color: var(--soft);
+    }
+
+    .io-label {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink);
+      font-weight: 500;
+      min-width: 60px;
+      flex-shrink: 0;
+      padding-top: 2px;
+    }
+
+    .placeholder {
+      border: 1px dashed var(--rule);
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .fig-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    footer {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 28px 0 60px;
+      border-top: 1px solid var(--rule);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 540px) {
+      .fig-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Optimising Learned H_theta for Low Error Spatial Audio Rendering</h1>
+</header>
+
+
+
+<main>
+
+  <section id="abstract">
+    <h2>Abstract</h2>
+    <p>When sound reaches a listener, the shape and size of the head, ears, and facial structure modifies it differently for each ear. The brain uses this difference to determine the direction the sound came from. This work studies how to learn that modification, the Head-Related Transfer Function (HRTF) from recorded audio, and use it to make a listener perceive sound as arriving from a chosen direction. We present a data collection pipeline, two estimation methods (least squares and per-frequency convolution), and evaluation results across multiple listeners and angles.</p>
+  </section>
+
+  <section id="intro">
+    <h2>Introduction</h2>
+    <p>Headphones present audio directly into each ear. This bypasses the natural filtering that happens when sound travels through space and around the head. As a result, music played over headphones tends to feel like it is inside the head rather than out in space. The goal of spatial audio is to simulate that natural filtering. If we can learn how a sound source at angle theta modifies the signal reaching each ear, we can recreate that effect artificially: play the original signal in one ear and the appropriately filtered version in the other. The listener's brain should then perceive the sound as coming from angle theta.</p>
+    <p>The key object we need to learn is the HRTF. Concretely, if x_L and x_R are the left and right ear recordings of a sound from angle theta, then the HRTF H_theta satisfies:</p>
+    <span class="eq">x_R = H_theta * x_L</span>
+    <p>Learning H_theta for each angle theta is the central problem of this project.</p>
+  </section>
+  
+  <section id="prior">
+    <h2>Prior Work</h2>
+
+    <h3>1 HRTF Measurement and Modelling</h3>
+    <p>Gardner and Martin [1] measured head-related transfer functions using the KEMAR mannequin across azimuth and elevation, producing head-related impulse responses that capture direction-dependent spectral and temporal characteristics. Brown and Duda [2] built a structural model for binaural sound synthesis, representing interaural time differences, head shadowing, and pinna filtering. Cheng and Wakefield [3] described HRTFs in time, frequency, and spatial domains and discussed their use in binaural audio reproduction over headphones.</p>
+
+    <h3>2 HRTF Databases and Standardization</h3>
+    <p>Gardner and Martin [1] also distributed head-related impulse responses from the KEMAR mannequin through the MIT Media Laboratory, which became a widely used baseline dataset. Algazi et al. [4] introduced the CIPIC database, providing measurements across a dense set of spatial directions with anthropometric data from subjects. Majdak et al. [5] describe the ARI database supporting research on spatial hearing. AES69 [6] defines the Spatially Oriented Format for Acoustics (SOFA), a standardized format for storing and exchanging HRTF data. Kulkarni and Colburn [7] studied how changes in spectral cues affect localization performance.</p>
+
+    <h3>3 HRTF Personalization</h3>
+    <p>Zotkin et al. [8] selected HRTFs from a database using anthropometric similarity. Hu et al. [9] trained a neural network to estimate HRTFs from head and ear measurements. Jin et al. [10] interpolated HRTFs using principal component analysis, reconstructing responses for unmeasured directions. Meshram et al. [11] computed HRTFs from 3D head geometry using acoustic simulation. Lee and Kim [12] predicted HRTFs from ear images using deep learning.</p>
+
+    <h3>4 Low-Cost and Scalable Acquisition</h3>
+    <p>Yang and Roy Choudhury [13] estimated HRTFs using a smartphone and in-ear microphones without requiring a controlled acoustic environment. Jayaram et al. [14] studied HRTF estimation from binaural recordings in unconstrained settings.</p>
+
+    <h3>5 Machine Learning for HRTF</h3>
+    <p>Hu et al. [9] and Lee and Kim [12] used neural networks to predict HRTFs from physical measurements and ear images respectively. Jin et al. [10] used statistical modelling for spatial interpolation. Yao et al. [15] estimated HRTFs for arbitrary directions using learning-based approaches. Xu and Choudhury [16] applied spatial audio representations in learning models. Bruschi et al. [17] reviewed measurement-based, simulation-based, and data-driven HRTF generation methods.</p>
+  </section>
+
+  <section id="goals">
+    <h2>Goals of the Present Work</h2>
+    <p>This project has three goals. First, we collect our own HRTF measurements using low-cost hardware, without a controlled acoustic environment. Second, we implement and compare two estimation methods: a least squares approach in the frequency domain and a per-frequency convolution approach in the time domain. Third, we evaluate both methods perceptually by having listeners report the perceived direction of spatialized audio and measuring the angular error.</p>
+  </section>
+
+  <section id="problem">
+    <h2>Problem Statement</h2>
+    <p>The problem is: given a mono audio signal, how do we process it so that when played over headphones, the listener perceives it as coming from a specific direction?</p>
+    <div class="io">
+      <div class="io-row">
+        <span class="io-label">Input</span>
+        <span>A mono audio signal S, and a target angle theta.</span>
+      </div>
+      <div class="io-row">
+        <span class="io-label">Output</span>
+        <span>A stereo audio signal where the left channel carries S and the right channel carries H_theta * S, such that the listener perceives the sound as arriving from angle theta.</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="applications">
+    <h2>Applications</h2>
+    <p>Spatial audio has practical value in several areas. In virtual reality and gaming, placing sounds at specific locations in a simulated environment increases immersion. Listeners could more accurately locate virtual sound sources when individualised HRTFs were used compared to generic ones. Game engines such as Unreal and Unity now include built-in spatial audio pipelines, and headset manufacturers like Valve and Meta have invested heavily in real-time HRTF rendering. In hearing aids, directional audio plays a practical role. Many hearing aid users struggle to identify where sounds come from, a problem known as spatial hearing loss.</p>
+  </section>
+
+  <section id="challenges">
+    <h2>Challenges</h2>
+    <ul>
+      <li>The HRTF is person-specific. The filtering caused by head size, head shape, ear shape, and shoulder geometry differs across individuals. An H_theta measured from one person will not generalise well to another.</li>
+      <li>Real audio like music or human voices contains multiple frequencies together. The HRTF behaves differently at each frequency: its effect at 500 Hz differs from its effect at 8 kHz. A single broadband estimate of H may not capture this variation accurately.</li>
+      <li>Data collection is also non-trivial. The microphones and sound source must remain fixed during recording, and any movement introduces measurement noise that corrupts the estimate of H.</li>
+      <li>The system must generalise: H is estimated from a training set of recordings and must then apply correctly to new audio it has never seen.</li>
+    </ul>
+  </section>
+
+
+  <section id="methodology">
+    <h2>Experimental Methodology</h2>
+
+    <h3>Hardware Setup</h3>
+    <p>We taped one omnidirectional lavalier microphone near each ear to approximate the input at each eardrum. Initial attempts using Bluetooth earbuds failed due to onboard noise cancellation processing the signal before it could be recorded. Low-cost Maono lavalier microphones were used instead as they capture the raw acoustic signal without any onboard processing.</p>
+    <p>A phone speaker was placed on a tripod at a fixed angle theta and distance of approximately 30 cm from the listener, aligned with ear level. The setup was kept fixed throughout each recording session.</p>
+
+    <h3>Data Collection</h3>
+    <p>For the broadband method, we played multiple audio clips from the speaker at each angle and recorded the simultaneous left and right ear signals. Recordings were aligned in post-processing and exported as stereo waveforms using Audacity. We collected recordings at angles of 10, 30, 45, 60, 90, 120, 150, 180, 220, and 320 degrees around the listener.</p>
+    <p>For the per-frequency method, we played sinusoidal beeps from 100 Hz to 16 kHz in steps of 100 Hz, recording the left and right ear response to each tone individually.</p>
+  </section>
+
+  <section id="technical">
+    <h2>Technical Approach</h2>
+
+    <h3>HRTF Estimation using Least Squares</h3>
+    <p>We record a stereo signal with the source placed at angle theta. The left ear recording is x_L and the right ear recording is x_R. H_theta is the filter that satisfies:</p>
+    <span class="eq">x_R = H_theta * x_L</span>
+    <p>We want to find H_theta given x_L and x_R. In general, this equation has no exact solution. The recorded signals contain noise, and the system is overdetermined: there are more signal samples than filter coefficients. So instead of solving exactly, we find the H_theta that minimizes the squared error between x_R and H_theta · x_L.</p>
+    <p>This is the Least Squares problem. x_R may not lie in the column space of the system, so we find the closest point that does. That closest point is the projection of x_R onto the column space, and the solution H_theta that achieves it is the Least Squares solution.</p>
+    <p>To make this tractable for audio signals, we work in the frequency domain. The signal is split into short segments. For each segment i, we take the FFT of x_L and x_R:</p>
+    <span class="eq">X_L(f), X_R(f) = FFT(x_L_i), FFT(x_R_i)</span>
+    <p>The Least Squares estimate of H_theta at each frequency f is then accumulated across all segments:</p>
+    <span class="eq">H_theta(f) = Σ X_R(f) · conj(X_L(f)) / Σ |X_L(f)|²</span>
+    <p>This is the frequency-domain form of the normal equations. The numerator is the cross-spectrum between x_R and x_L, and the denominator is the power spectrum of x_L. Dividing them gives the best linear filter in the least squares sense. A small regularization term λ is added to the denominator to avoid division by near-zero values:</p>
+    <span class="eq">H_theta(f) = Σ X_R(f) · conj(X_L(f)) / (Σ |X_L(f)|² + λ)</span>
+    <p>We repeat this for each angle theta, producing one H_theta per direction.</p>
+
+    <h3>Per-Frequency Convolution in the Time Domain</h3>
+    <p>Method 1 estimates a single H_theta across the full signal. This works, but a single filter may not capture how the HRTF behaves differently at each frequency. Method 2 addresses this by learning a separate filter H_f(t) for each frequency f.</p>
+    <p>A sequence of pure sine tones is played, one tone per frequency, stepping from 160 Hz to 16000 Hz in increments of 100 Hz. For each tone at frequency f, we extract the corresponding segment from the left and right ear recordings, giving x_{L,f}(t) and x_{R,f}(t). The filter H_f(t) is the time-domain filter such that:</p>
+    <span class="eq">x_{L,f}(t) * H_f(t) = x_{R,f}(t)</span>
+    <p>where * denotes convolution. We estimate H_f(t) using cross-correlation between x_{R,f}(t) and x_{L,f}(t). The peak of the cross-correlation captures the delay and shape of the filter at that frequency. A window around the peak is taken and normalized to give H_f(t).</p>
+    <p>To spatialize a music signal M(t), we isolate each frequency band M_f(t), convolve it with the corresponding H_f(t), and sum the outputs across all frequencies:</p>
+    <span class="eq">x_R(t) = Σ_f  M_f(t) * H_f(t)</span>
+    <p>This gives the right ear signal. The left channel carries M(t) directly. By learning a dedicated filter at each frequency, the method captures the directional filtering more precisely, which is expected to reduce perceptual error compared to Method 1.</p>
+  </section>
+
+  <section id="results">
+    <h2>Results</h2>
+    <div class="fig-row">
+      <figure>
+		<img src="image(6).png" alt="Figure 1" style="width:100%; display:block;">
+		<figcaption style="font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 8px;">Figure 1</figcaption>
+	  </figure>
+	  <figure>
+		<img src="image(5).png" alt="Figure 1" style="width:100%; display:block;">
+		<figcaption style="font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 8px;">Figure </figcaption>
+	  </figure>
+    </div>
+    <div class="fig-row">
+      <div class="placeholder">Figure 3</div>
+      <div class="placeholder">Figure 4</div>
+    </div>
+  </section>
+  
+  <section id="demos">
+	<h2>Results</h2>
+  </section id="demos">
+	
+
+  <section id="references">
+    <h2>References</h2>
+    <p style="font-family: var(--mono); font-size: 13px; line-height: 2; color: var(--soft);">
+      [1] W. G. Gardner and K. D. Martin, "HRTF measurements of a KEMAR dummy-head microphone," <em>J. Acoust. Soc. Am.</em>, 1995.<br>
+      [2] C. P. Brown and R. O. Duda, "A structural model for binaural sound synthesis," <em>IEEE Trans.</em>, 1998.<br>
+      [3] C. I. Cheng and G. H. Wakefield, "Introduction to head-related transfer functions," <em>JAES</em>, 2001.<br>
+      [4] V. R. Algazi et al., "The CIPIC HRTF database," <em>WASPAA</em>, 2001.<br>
+      [5] P. Majdak et al., "ARI HRTF database," 2013.<br>
+      [6] AES69, "Spatially Oriented Format for Acoustics (SOFA)."<br>
+      [7] A. Kulkarni and H. S. Colburn, "Role of spectral detail in sound localization," <em>Nature</em>, 1998.<br>
+      [8] D. Zotkin et al., "HRTF personalization using anthropometric measurements," <em>WASPAA</em>, 2003.<br>
+      [9] H. Hu et al., "HRTF personalization using neural networks," <em>Applied Acoustics</em>, 2008.<br>
+      [10] C. Jin et al., "Interpolating HRTFs using PCA," <em>IEEE Trans.</em>, 2007.<br>
+      [11] A. Meshram et al., "P-HRTF," <em>ISMAR</em>, 2014.<br>
+      [12] J. Lee and D. Kim, "Deep learning for HRTF estimation," <em>Applied Sciences</em>, 2018.<br>
+      [13] Z. Yang and R. R. Choudhury, "Personalizing HRTFs for Earables," 2021.<br>
+      [14] V. Jayaram et al., "HRTF estimation in the wild," 2023.<br>
+      [15] D. Yao et al., "HRTF individualization in arbitrary directions," 2022.<br>
+      [16] Z. Xu and R. R. Choudhury, "Learning spatial audio representations," 2022.<br>
+      [17] V. Bruschi et al., "Review of HRTF generation," 2024.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  Spatial Audio · 2025
+</footer>
+
+</body>
+</html>
